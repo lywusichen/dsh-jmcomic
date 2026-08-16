@@ -17,6 +17,7 @@
     "lib/server.cjs",
     "cordis.patch.yml",
     "vendor",
+    "assets",
     "README.md",
     "README.zh.md",
     "README.ja.md",

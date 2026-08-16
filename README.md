@@ -15,6 +15,14 @@ A DeepSeek Harness plugin: a **comic** trigger in the sidebar footer that adds s
 - **Delete**: hover a library card to reveal a delete button (guarded: only albums under the base dir, never the root or system directories).
 - **Download banner**: while downloads run, "downloading …" is shown at the top of both the small panel and the large modal.
 
+## Screenshots
+
+![Sidebar comic trigger](assets/comic-trigger.png)
+
+![Small panel: search + local covers](assets/comic-pop.png)
+
+![Large modal: local library grid](assets/comic-library.png)
+
 ## Offline-first
 
 The plugin bundles:

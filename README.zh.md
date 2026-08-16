@@ -15,6 +15,14 @@ DeepSeek Harness 插件:在侧栏底部添加 **comic** 按钮,提供 JMComic(�
 - **删除**:悬停漫画卡片显示删除按钮(带安全护栏:仅可删库目录下的专辑,禁止删根目录与系统目录)。
 - **下载横幅**:下载进行时,小窗与大悬浮窗顶部均显示 "downloading …"。
 
+## 截图
+
+![侧栏 comic 按钮](assets/comic-trigger.png)
+
+![小窗:搜索 + 本地封面](assets/comic-pop.png)
+
+![大悬浮窗:本地漫画库网格](assets/comic-library.png)
+
 ## 离线运行
 
 插件内置了:
