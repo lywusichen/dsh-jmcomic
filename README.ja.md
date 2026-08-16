@@ -57,6 +57,16 @@ node selfcheck.cjs   # stub ctx で全 /jmcomic/* ルートを検証
 - 設定ファイル:`~/.dsh/plugins/dsh-jmcomic/settings.json`(Windows)
 - ダウンロード戦略(実戦検証済み):`client.impl: api` 直結、ディレクトリ規則 `Bd/{Atitle}/第{Pindex}話`、低並行(image 3 / photo 1)。
 
+## 免責事項
+
+本プラグインのダウンロードエンジン・リーダーフロントエンド・補助スクリプトは、**hect0x7** のオープンソースプロジェクトを参考に(一部改変して)構築されています:
+
+- [JMComic-Crawler-Python](https://github.com/hect0x7) — 同梱ダウンロードコア(`vendor/python/jmcomic`、commonX)
+- [jm-view-server](https://github.com/hect0x7) — 同梱リーダーフロントエンド(`vendor/viewer/static`)
+- [jmcomic-ai](https://github.com/hect0x7) — 同梱補助スクリプトとサービス層(`vendor/python/jmcomic_ai`、`vendor/scripts`)
+
+元プロジェクトの著作権は各作者に帰属します。本プラグインは独立した統合であり、オフライン動作のために元のライセンスに基づき上記ソースを同梱しています。
+
 ## 謝辞
 
 - [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python) — ダウンロードエンジン

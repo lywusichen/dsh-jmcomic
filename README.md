@@ -57,6 +57,16 @@ node selfcheck.cjs   # verifies all /jmcomic/* routes against a stub ctx
 - Settings file: `~/.dsh/plugins/dsh-jmcomic/settings.json` (Windows)
 - Download strategy (battle-tested): `client.impl: api` direct connection, `Bd/{Atitle}/第{Pindex}話` directory rule, low concurrency (image 3 / photo 1).
 
+## Disclaimer
+
+This plugin's download engine, reader frontend, and helper scripts are built with reference to (and in some parts adapted from) the open-source projects of **hect0x7**:
+
+- [JMComic-Crawler-Python](https://github.com/hect0x7) — vendored download core (`vendor/python/jmcomic`, commonX)
+- [jm-view-server](https://github.com/hect0x7) — vendored reader frontend (`vendor/viewer/static`)
+- [jmcomic-ai](https://github.com/hect0x7) — vendored helper scripts & service layer (`vendor/python/jmcomic_ai`, `vendor/scripts`)
+
+All rights of the original projects belong to their respective authors. This plugin is an independent integration that vendors those sources for offline operation under their original licenses.
+
 ## Credits
 
 - [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python) — download engine

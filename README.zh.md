@@ -57,6 +57,16 @@ node selfcheck.cjs   # 用 stub ctx 验证全部 /jmcomic/* 路由
 - 设置文件:`~/.dsh/plugins/dsh-jmcomic/settings.json`(Windows)
 - 下载策略(实战验证):`client.impl: api` 国内直连、目录规则 `Bd/{Atitle}/第{Pindex}話`、低并发(image 3 / photo 1)。
 
+## 声明
+
+本插件的下载内核、阅读器前端与辅助脚本参考自(部分改编自)**hect0x7** 的开源项目:
+
+- [JMComic-Crawler-Python](https://github.com/hect0x7) — 内置下载核心(`vendor/python/jmcomic`、commonX)
+- [jm-view-server](https://github.com/hect0x7) — 内置阅读器前端(`vendor/viewer/static`)
+- [jmcomic-ai](https://github.com/hect0x7) — 内置辅助脚本与服务层(`vendor/python/jmcomic_ai`、`vendor/scripts`)
+
+原项目版权归其各自作者所有。本插件为独立整合,在各自原始许可证下内置上述源码以实现离线运行。
+
 ## 致谢
 
 - [JMComic-Crawler-Python](https://github.com/hect0x7/JMComic-Crawler-Python) — 下载内核
