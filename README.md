@@ -36,7 +36,7 @@ It therefore works **even without the jmcomic PyPI package installed**. Missing 
 ## Install
 
 ```bash
-dsh plugin --profile web add <package-path-or-git-url>
+dsh plugin --profile web add github:lywusichen/dsh-jmcomic
 ```
 
 ## Build

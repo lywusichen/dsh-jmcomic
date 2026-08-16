@@ -36,7 +36,7 @@ DeepSeek Harness プラグイン:サイドバー下部に **comic** ボタンを
 ## インストール
 
 ```bash
-dsh plugin --profile web add <パッケージパスまたは git URL>
+dsh plugin --profile web add github:lywusichen/dsh-jmcomic
 ```
 
 ## ビルド
