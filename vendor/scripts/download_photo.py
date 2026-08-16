@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""
+Batch photo/chapter download tool.
+Download specific chapters from albums.
+
+Usage:
+    # Download specific chapters
+    python scripts/download_photo.py --ids 123456,789012,345678
+
+    # Download chapters from file
+    python scripts/download_photo.py --file photo_ids.txt
+"""
+
+import argparse
+import asyncio
+import sys
+from pathlib import Path
+
+try:
+    from ._script_utils import exit_for_import_error
+except ImportError:
+    from _script_utils import exit_for_import_error  # type: ignore[no-redef]
+
+try:
+    from jmcomic import JmcomicText
+except ImportError as exc:
+    exit_for_import_error(exc, "jmcomic", "Please install: pip install jmcomic")
+
+try:
+    from jmcomic_ai.core import JmcomicService
+except ImportError as exc:
+    exit_for_import_error(exc, "jmcomic_ai", "Please ensure the package is installed.")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Batch download JMComic chapters/photos")
+
+    # Input mode
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument("--ids", type=str, help="Comma-separated photo/chapter IDs")
+    input_group.add_argument("--file", type=str, help="File containing photo IDs (one per line)")
+
+    # Options
+    parser.add_argument("--option", type=str, help="Path to option.yml file")
+
+    return parser.parse_args()
+
+
+def load_photo_ids(args) -> list[str]:
+    """Load photo IDs from arguments"""
+    if args.ids:
+        return [JmcomicText.parse_to_jm_id(pid.strip()) for pid in args.ids.split(",") if pid.strip()]
+
+    if args.file:
+        file_path = Path(args.file)
+        if not file_path.exists():
+            print(f"❌ Error: File not found: {file_path}")
+            sys.exit(1)
+
+        with open(file_path, encoding="utf-8") as f:
+            values = (line.strip() for line in f)
+            return [JmcomicText.parse_to_jm_id(value) for value in values if value and not value.startswith("#")]
+
+    return []
+
+
+async def main():
+    args = parse_args()
+    photo_ids = load_photo_ids(args)
+
+    if not photo_ids:
+        print("❌ Error: No photo IDs provided")
+        sys.exit(1)
+
+    print("📷 Batch Photo Download Tool")
+    print(f"{'=' * 50}")
+    print(f"Total chapters to download: {len(photo_ids)}")
+    print(f"{'=' * 50}\n")
+
+    # Initialize service
+    service = JmcomicService(option_path=args.option)
+
+    # Download each photo
+    success_count = 0
+    failed_ids = []
+
+    print("Queuing downloads...")
+    tasks = []
+    for i, photo_id in enumerate(photo_ids, 1):
+        tasks.append(service.download_photo(photo_id))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for i, (photo_id, result) in enumerate(zip(photo_ids, results), 1):
+        if isinstance(result, asyncio.CancelledError):
+            raise result
+        if isinstance(result, Exception):
+            print(f"❌ Failed to download chapter {photo_id}: {result}")
+            failed_ids.append(photo_id)
+        elif result.get("status") == "success":
+            print(f"✅ Successfully downloaded chapter {photo_id} ({result.get('image_count')} images)")
+            print(f"   📂 {result.get('download_path')}")
+            print(f"   📝 {result.get('log_path')}")
+            success_count += 1
+        else:
+            print(f"❌ Failed to download chapter {photo_id}: {result.get('error')}")
+            print(f"   📝 {result.get('log_path')}")
+            failed_ids.append(photo_id)
+
+    # Summary
+    print(f"\n{'=' * 50}")
+    print("📊 Download Summary:")
+    print(f"✅ Successful: {success_count}/{len(photo_ids)}")
+    print(f"❌ Failed: {len(failed_ids)}/{len(photo_ids)}")
+
+    if failed_ids:
+        print("\nFailed chapter IDs:")
+        for pid in failed_ids:
+            print(f"  - {pid}")
+
+    print(f"{'=' * 50}")
+
+    if failed_ids:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

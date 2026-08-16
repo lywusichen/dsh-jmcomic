@@ -1,0 +1,16 @@
+# Node
+node_modules/
+dist/
+*.log
+
+# Python (vendored source caches)
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts (regenerable)
+lib/*.map

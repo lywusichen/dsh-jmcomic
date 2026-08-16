@@ -1,0 +1,59 @@
+{
+  "name": "dsh-jmcomic",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness plugin: a \"comic\" trigger in the sidebar foot that opens search/download, an importable local library, and an in-modal manga reader. Bundles the jmcomic source so it works without the jmcomic PyPI package.",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": [
+    "index.js",
+    "lib/client.js",
+    "lib/server.cjs",
+    "cordis.patch.yml",
+    "vendor",
+    "README.md",
+    "README.zh.md",
+    "README.ja.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepare": "node build.mjs"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-api-remotes"
+      ]
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "jmcomic",
+    "comic",
+    "reader",
+    "plugin"
+  ],
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
