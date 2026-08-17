@@ -44,6 +44,8 @@ const zh = {
   'comic.settingsBaseDirPlaceholder': '留空使用当前绑定目录',
   'comic.settingsPick': '选择文件夹',
   'comic.settingsPython': 'Python 可执行文件(可选)',
+  'comic.pageJump': '页数',
+  'comic.go': '跳转',
 }
 
 const en = {
@@ -76,6 +78,8 @@ const en = {
   'comic.settingsBaseDirPlaceholder': 'Leave empty to keep current binding',
   'comic.settingsPick': 'Pick folder',
   'comic.settingsPython': 'Python executable (optional)',
+  'comic.pageJump': 'page',
+  'comic.go': 'Go',
 }
 
 // --- Styles (injected once; no CSS pipeline) --------------------------------
@@ -128,8 +132,26 @@ const STYLES = `
 .dsh-jmcomic__readerChapters{display:flex;gap:6px;flex:1;min-width:0;overflow-x:auto}
 .dsh-jmcomic__chip{flex:none;height:28px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;background:transparent;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
 .dsh-jmcomic__chip.active{background:var(--dsw-alias-accent-1);color:#fff;border-color:transparent}
-.dsh-jmcomic__readerView{flex:1;min-height:0;overflow-y:auto;background:var(--dsw-alias-bg-layer-1);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
-.dsh-jmcomic__readerView img{max-width:100%;display:block;height:auto}
+.dsh-jmcomic__readerView{flex:1;min-height:0;overflow-y:auto;position:relative;background:var(--dsw-alias-bg-layer-1);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
+.dsh-jmcomic__readerView img{max-width:100%;height:auto;display:block}
+.dsh-jmcomic__readerFooter{flex:none;display:flex;align-items:center;justify-content:center;gap:10px;height:48px;padding:0 12px;box-sizing:border-box;border-top:1px solid var(--dsw-alias-border-l2)}
+.dsh-jmcomic__pageInfo{flex:none;font-size:13px;color:var(--dsw-alias-label-primary);min-width:80px;text-align:center}
+.dsh-jmcomic__pageInput{flex:none;width:72px;height:30px;padding:0 10px;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-input);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;text-align:center;outline:none}
+.dsh-jmcomic__pageInput:focus{border-color:var(--dsw-alias-accent-1)}
+/* 阅读器窗口 8 方向拉伸手柄(绝对定位热区) */
+.dsh-jmcomic__rsz{position:absolute;z-index:20}
+.dsh-jmcomic__rsz-n{top:-3px;left:12px;right:12px;height:8px}
+.dsh-jmcomic__rsz-s{bottom:-3px;left:12px;right:12px;height:8px}
+.dsh-jmcomic__rsz-e{right:-3px;top:12px;bottom:12px;width:8px}
+.dsh-jmcomic__rsz-w{left:-3px;top:12px;bottom:12px;width:8px}
+.dsh-jmcomic__rsz-ne{top:-4px;right:-4px;width:16px;height:16px}
+.dsh-jmcomic__rsz-nw{top:-4px;left:-4px;width:16px;height:16px}
+.dsh-jmcomic__rsz-se{bottom:-4px;right:-4px;width:16px;height:16px}
+.dsh-jmcomic__rsz-sw{bottom:-4px;left:-4px;width:16px;height:16px}
+/* 阅读器窗口顶部拖拽把手(留白,方便移动窗口) */
+.dsh-jmcomic__readerDragBar{flex:none;height:26px;cursor:move;border-bottom:1px solid transparent;display:flex;align-items:center;justify-content:center}
+.dsh-jmcomic__readerDragBar:hover{background:var(--dsw-alias-interactive-bg-hover);border-bottom-color:var(--dsw-alias-border-l2)}
+.dsh-jmcomic__readerDragBar::after{content:'⠿';color:var(--dsw-alias-label-tertiary);font-size:12px;opacity:.6}
 .dsh-jmcomic__toast{position:fixed;left:50%;bottom:48px;transform:translateX(-50%);z-index:1100;max-width:calc(100vw - 48px);padding:10px 18px;border-radius:12px;background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-shadow-lv3);font-family:inherit;font-size:13px;border:1px solid var(--dsw-alias-border-l2)}
 .dsh-jmcomic__searchResults{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
 .dsh-jmcomic__resultRow{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;cursor:pointer}
@@ -277,20 +299,42 @@ function InstallPrompt({ t, onClose, onOpenGitHub }) {
 
 // --- Reader -----------------------------------------------------------------
 
-function Reader({ album, chapters, initialChapter, onBack, t }) {
+function Reader({ chapters, initialChapter, initialPage, albumPath, onProgress, onBack, t }) {
   const [chapter, setChapter] = useState(initialChapter || (chapters.length > 0 ? chapters[0].path : null))
   const [images, setImages] = useState(null)
-  const [title, setTitle] = useState('')
+  const [currentPage, setCurrentPage] = useState(0)
+  const [pageInput, setPageInput] = useState('')
+  const viewRef = useRef(null)
+  const imgRefs = useRef([])
+  const pendingInitialPage = useRef(initialPage || null)
+  const progressRef = useRef({ chapter: initialChapter || (chapters.length > 0 ? chapters[0].path : null), page: 0 })
 
   useEffect(() => {
     if (!chapter) { setImages([]); return }
     setImages(null)
+    setCurrentPage(0)
+    setPageInput('')
+    imgRefs.current = []
+    // 恢复上次进度:切章时若该章有保存的页码,用它;否则保留 initialPage(首次进入)
+    const restorePage = pendingInitialPage.current
+    pendingInitialPage.current = null // 只对首次进入生效,切章后从头开始
+    progressRef.current = { chapter, page: 0 }
     let cancelled = false
     apiGet(`/jmcomic/api/chapter?path=${encodeURIComponent(chapter)}`).then((r) => {
       if (cancelled) return
       if (r.ok) {
         setImages(r.data.images)
-        setTitle(r.data.title)
+        if (restorePage && restorePage > 1) {
+          // 等图片渲染后滚动到保存的页码
+          requestAnimationFrame(() => {
+            const img = imgRefs.current[restorePage - 1]
+            if (img && viewRef.current) {
+              viewRef.current.scrollTop = img.offsetTop
+              setCurrentPage(restorePage - 1)
+              setPageInput(String(restorePage))
+            }
+          })
+        }
       } else {
         setImages([])
       }
@@ -298,6 +342,64 @@ function Reader({ album, chapters, initialChapter, onBack, t }) {
     return () => { cancelled = true }
   }, [chapter])
 
+  // 滚动时更新当前页(rAF 节流 + 页码变化才 setState,避免高频重渲染)
+  useEffect(() => {
+    const el = viewRef.current
+    if (!el) return
+    let raf = 0
+    let lastPage = 0
+    const computePage = () => {
+      const containerTop = el.getBoundingClientRect().top
+      const containerH = el.clientHeight
+      let page = 0
+      for (let i = 0; i < imgRefs.current.length; i++) {
+        const img = imgRefs.current[i]
+        if (!img) continue
+        const imgTop = img.getBoundingClientRect().top - containerTop
+        if (imgTop <= containerH * 0.35) page = i
+        else break
+      }
+      if (page !== lastPage) {
+        lastPage = page
+        setCurrentPage(page)
+        // 上报阅读进度(1-based 页码),供持久化
+        progressRef.current = { chapter, page: page + 1 }
+        if (onProgress) onProgress(albumPath, chapter, page + 1)
+      }
+    }
+    const onScroll = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        computePage()
+      })
+    }
+    computePage()
+    el.addEventListener('scroll', onScroll)
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [images, chapter, onProgress, albumPath])
+
+  // 跳转到指定页(1-based)
+  const jumpToPage = (raw) => {
+    const total = (images || []).length
+    if (!total) return
+    let n = parseInt(raw, 10)
+    if (isNaN(n)) n = currentPage + 1
+    n = Math.max(1, Math.min(total, n))
+    const img = imgRefs.current[n - 1]
+    if (img && viewRef.current) {
+      const containerTop = viewRef.current.getBoundingClientRect().top
+      const target = img.getBoundingClientRect().top - containerTop + viewRef.current.scrollTop
+      viewRef.current.scrollTo({ top: target, behavior: 'smooth' })
+    }
+    setCurrentPage(n - 1)
+    setPageInput(String(n))
+  }
+
+  const total = (images || []).length
   const active = chapters.findIndex((c) => c.path === chapter)
 
   return (
@@ -320,25 +422,50 @@ function Reader({ album, chapters, initialChapter, onBack, t }) {
             className="dsh-jmcomic__chip"
             onClick={() => {
               const next = chapters[Math.min(chapters.length - 1, active + 1)]
-              if (next) setChapter(next.path)
+              if (next) {
+                // 切章前保存当前进度,新章节从第 1 页开始
+                if (onProgress) onProgress(albumPath, chapter, (currentPage + 1))
+                pendingInitialPage.current = null
+                setChapter(next.path)
+              }
             }}
           >
             ↓
           </button>
         )}
       </div>
-      <div className="dsh-jmcomic__readerView" style={{ scrollBehavior: 'auto' }}>
+      <div
+        ref={viewRef}
+        className="dsh-jmcomic__readerView"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         {images === null && <div className="dsh-jmcomic__state">…</div>}
         {images !== null && images.length === 0 && <div className="dsh-jmcomic__state">{t('comic.empty')}</div>}
-        {images !== null && images.map((img) => (
+        {images !== null && images.map((img, i) => (
           <img
             key={img.path}
+            ref={(el) => { imgRefs.current[i] = el }}
             src={`/jmcomic/api/img?path=${encodeURIComponent(img.path)}`}
             alt={img.name}
             loading="lazy"
           />
         ))}
       </div>
+      {total > 0 && (
+        <div className="dsh-jmcomic__readerFooter">
+          <span className="dsh-jmcomic__pageInfo">
+            {currentPage + 1} / {total}
+          </span>
+          <input
+            className="dsh-jmcomic__pageInput"
+            value={pageInput}
+            placeholder={t('comic.pageJump')}
+            onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ''))}
+            onKeyDown={(e) => { if (e.key === 'Enter') jumpToPage(pageInput) }}
+          />
+          <button className="dsh-jmcomic__btn ghost" onClick={() => jumpToPage(pageInput)}>{t('comic.go')}</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -361,7 +488,7 @@ function DlBanner({ downloads, t }) {
 
 // --- Large modal (library + reader) -----------------------------------------
 
-function LibraryModal({ baseDir, albums, initialAlbumPath, activeDownloads, onRefresh, onClose, onOpenDir, t }) {
+function LibraryModal({ baseDir, albums, initialAlbumPath, initialReadPath, activeDownloads, onRefresh, onClose, onOpenDir, t }) {
   const [view, setView] = useState({ mode: 'library' })
   const [chapterData, setChapterData] = useState(null)
   const [loadingChapters, setLoadingChapters] = useState(false)
@@ -382,23 +509,184 @@ function LibraryModal({ baseDir, albums, initialAlbumPath, activeDownloads, onRe
     style: modalStyle,
   }
 
-  // 打开时若带 initialAlbumPath(点击最近封面),自动进入该漫画的章节列表
+  // --- 阅读器视图专属:可移动 + 可拉伸(resize) ---
+  // readerRect: { left, top, width, height } | null;null = 默认全屏尺寸(CSS 居中)
+  const [readerRect, setReaderRect] = useState(null)
+  const resizeRef = useRef(null)
+
+  // 持久化:进入阅读器时恢复上次的窗口尺寸/位置(从插件设置读取)
+  useEffect(() => {
+    if (view.mode !== 'reader') return
+    let cancelled = false
+    apiGet('/jmcomic/api/settings').then((r) => {
+      if (cancelled || !r.ok) return
+      const saved = r.data && r.data.readerRect
+      if (saved && saved.left !== undefined && saved.width) {
+        setReaderRect(saved)
+      }
+    })
+    return () => { cancelled = true }
+  }, [view.mode === 'reader'])
+
+  // 从当前 DOM 读取 modal 实际位置/尺寸(首次操作时从 CSS 居中态取)
+  const readRect = () => {
+    const el = document.getElementById('dsh-jmcomic-reader-modal')
+    if (!el) return { left: 0, top: 0, width: 0, height: 0 }
+    const r = el.getBoundingClientRect()
+    return { left: r.left, top: r.top, width: r.width, height: r.height }
+  }
+
+  const startReaderMove = (e) => {
+    if (e.button !== 0) return
+    const target = e.target
+    if (target && (target.closest('button') || target.closest('input') || target.closest('select') || target.closest('a'))) return
+    e.preventDefault()
+    const start = readRect()
+    const sx = e.clientX
+    const sy = e.clientY
+    resizeRef.current = { mode: 'move', start, sx, sy }
+    document.addEventListener('mousemove', onReaderDrag)
+    document.addEventListener('mouseup', endReaderDrag)
+  }
+
+  const startReaderResize = (dir) => (e) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const start = readRect()
+    resizeRef.current = { mode: 'resize', dir, start, sx: e.clientX, sy: e.clientY }
+    document.addEventListener('mousemove', onReaderDrag)
+    document.addEventListener('mouseup', endReaderDrag)
+  }
+
+  const onReaderDrag = (ev) => {
+    const r = resizeRef.current
+    if (!r) return
+    const dx = ev.clientX - r.sx
+    const dy = ev.clientY - r.sy
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const MIN_W = 360
+    const MIN_H = 260
+    if (r.mode === 'move') {
+      setReaderRect({
+        left: Math.max(8, Math.min(r.start.left + dx, vw - 80)),
+        top: Math.max(8, Math.min(r.start.top + dy, vh - 60)),
+        width: r.start.width,
+        height: r.start.height,
+      })
+    } else {
+      // resize:dir 含 n/s/e/w 四个方向,按边/角调整
+      let { left, top, width, height } = r.start
+      if (r.dir.includes('e')) width = Math.max(MIN_W, r.start.width + dx)
+      if (r.dir.includes('s')) height = Math.max(MIN_H, r.start.height + dy)
+      if (r.dir.includes('w')) {
+        width = Math.max(MIN_W, r.start.width - dx)
+        left = r.start.left + (r.start.width - width)
+      }
+      if (r.dir.includes('n')) {
+        height = Math.max(MIN_H, r.start.height - dy)
+        top = r.start.top + (r.start.height - height)
+      }
+      // 不超过视口
+      width = Math.min(width, vw - 16)
+      height = Math.min(height, vh - 16)
+      setReaderRect({ left: Math.max(4, Math.min(left, vw - 16)), top: Math.max(4, Math.min(top, vh - 16)), width, height })
+    }
+  }
+
+  const endReaderDrag = () => {
+    resizeRef.current = null
+    document.removeEventListener('mousemove', onReaderDrag)
+    document.removeEventListener('mouseup', endReaderDrag)
+    // 持久化:拖动/拉伸结束时把最终窗口位置/尺寸存到插件设置
+    const el = document.getElementById('dsh-jmcomic-reader-modal')
+    if (el) {
+      const r = el.getBoundingClientRect()
+      void apiPost('/jmcomic/api/settings', {
+        readerRect: { left: r.left, top: r.top, width: r.width, height: r.height },
+      })
+    }
+  }
+
+  // 阅读器 modal 的最终样式:有 rect 用固定定位,否则默认全屏居中
+  const readerModalStyle = readerRect ? {
+    position: 'fixed',
+    left: readerRect.left,
+    top: readerRect.top,
+    width: readerRect.width,
+    height: readerRect.height,
+    margin: 0,
+    transform: 'none',
+  } : {
+    width: 'calc(100vw - 40px)',
+    maxWidth: '1600px',
+    height: 'calc(100vh - 40px)',
+  }
+
+  // resize 手柄定义(8 方向)
+  const resizeHandles = [
+    { dir: 'n', cls: 'dsh-jmcomic__rsz dsh-jmcomic__rsz-n', cursor: 'ns-resize' },
+    { dir: 's', cls: 'dsh-jmcomic__rsz dsh-jmcomic__rsz-s', cursor: 'ns-resize' },
+    { dir: 'e', cls: 'dsh-jmcomic__rsz dsh-jmcomic__rsz-e', cursor: 'ew-resize' },
+    { dir: 'w', cls: 'dsh-jmcomic__rsz dsh-jmcomic__rsz-w', cursor: 'ew-resize' },
+    { dir: 'ne', cls: 'dsh-jmcomic__rsz dsh-jmcomic__rsz-ne', cursor: 'nesw-resize' },
+    { dir: 'nw', cls: 'dsh-jmcomic__rsz dsh-jmcomic__rsz-nw', cursor: 'nwse-resize' },
+    { dir: 'se', cls: 'dsh-jmcomic__rsz dsh-jmcomic__rsz-se', cursor: 'nwse-resize' },
+    { dir: 'sw', cls: 'dsh-jmcomic__rsz dsh-jmcomic__rsz-sw', cursor: 'nesw-resize' },
+  ]
+
+  // 打开时若带 initialAlbumPath(点击最近封面),自动进入该漫画
   useEffect(() => {
     if (!initialAlbumPath) return
     const album = (albums || []).find((a) => a.path === initialAlbumPath)
-    if (album) void openAlbum(album)
+    if (album) void openAlbum(album, initialReadPath === initialAlbumPath)
   }, [initialAlbumPath])
 
-  const openAlbum = async (album) => {
+  const openAlbum = async (album, autoRead = false) => {
     setLoadingChapters(true)
     const r = await apiGet(`/jmcomic/api/album?path=${encodeURIComponent(album.path)}`)
     setLoadingChapters(false)
     if (r.ok) {
       setChapterData(r.data)
       setView({ mode: 'album', album, data: r.data })
+      // 读取该漫画的阅读进度,恢复章节+页码
+      const progress = await readProgressOf(album.path)
+      if (autoRead && r.data.chapters.length > 0) {
+        let targetChapter = r.data.chapters[0]
+        let targetPage = 0
+        if (progress) {
+          const saved = r.data.chapters.find((c) => c.path === progress.chapter)
+          if (saved) {
+            targetChapter = saved
+            targetPage = progress.page || 0
+          }
+        }
+        recordRecent(album.path, targetChapter.path)
+        setView({ mode: 'reader', albumPath: album.path, chapters: r.data.chapters, initialChapter: targetChapter.path, initialPage: targetPage })
+      }
     } else {
       setView({ mode: 'library' })
     }
+  }
+
+  // 读取某漫画的阅读进度(缓存避免重复请求)
+  const progressCache = useRef({})
+  const readProgressOf = async (albumPath) => {
+    if (progressCache.current[albumPath] !== undefined) return progressCache.current[albumPath]
+    const r = await apiGet('/jmcomic/api/settings')
+    if (!r.ok) { progressCache.current[albumPath] = null; return null }
+    const p = r.data && r.data.readProgress && r.data.readProgress[albumPath]
+    progressCache.current[albumPath] = p || null
+    return p || null
+  }
+
+  // 保存阅读进度(滚动/切章时由 Reader 回调)
+  const saveProgress = (albumPath, chapterPath, page) => {
+    progressCache.current[albumPath] = { chapter: chapterPath, page }
+    void apiPost('/jmcomic/api/settings', {
+      readProgress: { [albumPath]: { chapter: chapterPath, page, at: Date.now() } },
+    })
   }
 
   const recordRecent = (albumPath, chapterPath) => {
@@ -412,9 +700,13 @@ function LibraryModal({ baseDir, albums, initialAlbumPath, activeDownloads, onRe
     })
   }
 
-  const openChapter = (albumPath, chapterPath) => {
+  const openChapter = async (albumPath, chapterPath) => {
     recordRecent(albumPath, chapterPath)
-    setView({ mode: 'reader', albumPath, chapters: chapterData.chapters, initialChapter: chapterPath })
+    // 恢复该章节的页码(同一漫画内切章)
+    let page = 0
+    const progress = await readProgressOf(albumPath)
+    if (progress && progress.chapter === chapterPath) page = progress.page || 0
+    setView({ mode: 'reader', albumPath, chapters: chapterData.chapters, initialChapter: chapterPath, initialPage: page })
   }
 
   const deleteAlbum = async (album, e) => {
@@ -432,15 +724,33 @@ function LibraryModal({ baseDir, albums, initialAlbumPath, activeDownloads, onRe
     return (
       <div className="dsh-jmcomic__overlay" role="presentation">
         <div className="dsh-jmcomic__mask" aria-hidden="true" onClick={() => setView({ mode: 'library' })} />
-        <div className="dsh-jmcomic__modal" role="dialog" aria-modal="true" {...modalDragProps} style={{ ...modalDragProps.style, width: 'min(1100px, calc(100vw - 32px))', height: 'min(92vh, 92vh)' }}>
+        <div
+          id="dsh-jmcomic-reader-modal"
+          className="dsh-jmcomic__modal"
+          role="dialog"
+          aria-modal="true"
+          style={readerModalStyle}
+          onMouseDown={startReaderMove}
+        >
+          <div className="dsh-jmcomic__readerDragBar" title="拖动窗口" />
           <DlBanner downloads={activeDownloads} t={t} />
           <Reader
-            album={view.albumPath}
             chapters={view.chapters}
             initialChapter={view.initialChapter}
+            initialPage={view.initialPage || 0}
+            albumPath={view.albumPath}
+            onProgress={saveProgress}
             onBack={() => setView({ mode: 'library' })}
             t={t}
           />
+          {resizeHandles.map((h) => (
+            <div
+              key={h.dir}
+              className={h.cls}
+              style={{ cursor: h.cursor }}
+              onMouseDown={startReaderResize(h.dir)}
+            />
+          ))}
         </div>
       </div>
     )
@@ -697,6 +1007,8 @@ function ComicTrigger(props) {
   const [albums, setAlbums] = useState([])
   const [triggerRef, setTriggerRef] = useState(null)
   const [initialAlbumPath, setInitialAlbumPath] = useState(null)
+  // 封面点击时标记:打开后直接进入第一章阅读
+  const [initialReadPath, setInitialReadPath] = useState(null)
   const pendingAlbum = useRef(null)
   // 进行中的下载任务列表:[{ id, title }],供小窗/大窗顶部显示
   const [activeDownloads, setActiveDownloads] = useState([])
@@ -715,7 +1027,17 @@ function ComicTrigger(props) {
 
   const loadSettings = async () => {
     const r = await apiGet('/jmcomic/api/settings')
-    if (r.ok) setSettings(r.data)
+    if (r.ok) {
+      // 数据未变化时不更新 state(避免轮询驱动无谓重渲染)
+      setSettings((prev) => {
+        if (prev && prev.baseDir === r.data.baseDir && prev.pythonPath === r.data.pythonPath
+          && prev.installPromptShown === r.data.installPromptShown
+          && JSON.stringify(prev.recent) === JSON.stringify(r.data.recent)) {
+          return prev
+        }
+        return r.data
+      })
+    }
     return r.ok ? r.data : null
   }
 
@@ -808,6 +1130,7 @@ function ComicTrigger(props) {
     setLibraryOpen(false)
     pendingAlbum.current = null
     setInitialAlbumPath(null)
+    setInitialReadPath(null)
   }
 
   return (
@@ -836,7 +1159,12 @@ function ComicTrigger(props) {
           onImport={onImport}
           onOpenLibrary={openLibrary}
           onSearchResult={loadLibrary}
-          onPick={(p) => { pendingAlbum.current = p; openLibrary() }}
+          onPick={(p) => {
+            pendingAlbum.current = p
+            setInitialAlbumPath(p)
+            setInitialReadPath(p)
+            openLibrary()
+          }}
           toast={toast}
           beginDownload={beginDownload}
           endDownload={endDownload}
@@ -845,10 +1173,11 @@ function ComicTrigger(props) {
 
       {libraryOpen && (
         <LibraryModal
-          key={initialAlbumPath ? `${initialAlbumPath}:${Date.now()}` : 'library'}
+          key={initialAlbumPath || 'library'}
           baseDir={settings?.baseDir || ''}
           albums={albums}
           initialAlbumPath={initialAlbumPath}
+          initialReadPath={initialReadPath}
           activeDownloads={activeDownloads}
           onRefresh={loadLibrary}
           onClose={closeLibrary}

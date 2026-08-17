@@ -45,6 +45,10 @@ const DEFAULT_SETTINGS = {
   recent: [],
   /** Python 可执行文件路径(空 = 自动探测)。 */
   pythonPath: '',
+  /** 阅读器窗口尺寸/位置持久化:{ left, top, width, height } | null。 */
+  readerRect: null,
+  /** 阅读进度:albumPath -> { chapter, page(1-based), at }。 */
+  readProgress: {},
 }
 
 /** 当前内存中的设置(进程生命周期内缓存)。 */
@@ -263,6 +267,14 @@ async function handleSetSettings(req, res) {
     if (typeof body.installPromptShown === 'boolean') next.installPromptShown = body.installPromptShown
     if (typeof body.pythonPath === 'string') next.pythonPath = body.pythonPath
     if (Array.isArray(body.recent)) next.recent = body.recent
+    // 阅读器窗口尺寸/位置:接受 { left, top, width, height } 或 null(恢复默认)
+    if (body.readerRect === null || (body.readerRect && typeof body.readerRect === 'object' && !Array.isArray(body.readerRect))) {
+      next.readerRect = body.readerRect
+    }
+    // 阅读进度:albumPath -> { chapter, page, at },与现有进度深合并
+    if (body.readProgress && typeof body.readProgress === 'object' && !Array.isArray(body.readProgress)) {
+      next.readProgress = { ...(next.readProgress || {}), ...body.readProgress }
+    }
     await saveSettings(next)
     sendJson(res, 200, { ok: true, data: next })
   } catch (e) {
