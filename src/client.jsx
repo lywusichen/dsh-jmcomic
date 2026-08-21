@@ -1294,6 +1294,7 @@ export function apply(ctx) {
   // 设置 → 插件 → 插件配置:jmcomic 配置卡(更改默认本地文件夹)
   ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
     name: 'settings.plugin.item',
+    key: 'dsh-jmcomic',
     id: 'dsh-jmcomic',
     order: 30,
     locale: NS,
