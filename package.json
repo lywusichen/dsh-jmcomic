@@ -1,6 +1,6 @@
 {
   "name": "dsh-jmcomic",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "DeepSeek Harness plugin: a \"comic\" trigger in the sidebar foot that opens search/download, an importable local library, and an in-modal manga reader. Bundles the jmcomic source so it works without the jmcomic PyPI package.",
   "license": "MIT",
   "type": "module",
