@@ -1,6 +1,6 @@
 # dsh-jmcomic
 
-简体中文 · [English](./README.md) · [日本語](./README.ja.md)
+简体中文 · [English](./README.md)
 
 DeepSeek Harness 插件。在侧栏加一个 comic 按钮,可以搜索下载禁漫(JMComic)的漫画,浏览本地漫画库,在窗口里直接看。
 

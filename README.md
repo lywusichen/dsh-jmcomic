@@ -1,6 +1,6 @@
 # dsh-jmcomic
 
-English · [日本語](./README.ja.md) · [简体中文](./README.zh.md)
+English · [简体中文](./README.zh.md)
 
 A DeepSeek Harness plugin. Adds a comic button in the sidebar to search & download manga from JMComic (18comic), browse your local library, and read inside a window.
 
